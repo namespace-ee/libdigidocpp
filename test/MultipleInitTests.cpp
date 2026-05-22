@@ -16,9 +16,9 @@
 
 namespace {
 
-// Fixture: sets the working directory and resolves the test data path,
-// but deliberately does NOT call digidoc::initialize() — each test drives
-// the init/terminate cycle itself.
+// Fixture sets up cwd + dataPath so optional offline TestConfig has somewhere
+// to find TSL.xml; tests that don't installConf() use the lib's default
+// ConfCurrent which fetches the live EU TSL on initialize().
 class MultipleInitFixture {
 public:
     MultipleInitFixture()
@@ -29,12 +29,10 @@ public:
             fs::current_path(boost::unit_test::framework::master_test_suite().argv[argc - 1]);
             dataPath = boost::unit_test::framework::master_test_suite().argv[argc - 1];
         }
-        if(!fs::is_regular_file(fs::path("TSL.xml")))
-            throw runtime_error("TSL.xml not found in data path: " + dataPath);
         boost::unit_test::unit_test_monitor.register_exception_translator<Exception>(&translate);
     }
 
-    void installConf() const
+    void installOfflineConf() const
     {
         Conf::init(new TestConfig(string("TSL.xml"), string(dataPath)));
     }
@@ -55,15 +53,25 @@ public:
 
 BOOST_FIXTURE_TEST_SUITE(MultipleInitSuite, MultipleInitFixture)
 
-BOOST_AUTO_TEST_CASE(InitTerminateInit)
+// Offline path: tiny static TSL.xml from test/data — currently passes on macOS.
+BOOST_AUTO_TEST_CASE(InitTerminateInit_OfflineConf)
 {
-    // Cycle 1
-    installConf();
+    installOfflineConf();
     BOOST_REQUIRE_NO_THROW(digidoc::initialize("multi-init-test"));
     BOOST_REQUIRE_NO_THROW(digidoc::terminate());
 
-    // Cycle 2 — same calls; crashes on macOS arm64 / Windows.
-    installConf();
+    installOfflineConf();
+    BOOST_REQUIRE_NO_THROW(digidoc::initialize("multi-init-test"));
+    BOOST_REQUIRE_NO_THROW(digidoc::terminate());
+}
+
+// Default ConfCurrent: live EU TSL (TSLAutoUpdate=true). Matches what
+// pydigidoc's DigiDocConf does and what its CI crashes on.
+BOOST_AUTO_TEST_CASE(InitTerminateInit_DefaultConf)
+{
+    BOOST_REQUIRE_NO_THROW(digidoc::initialize("multi-init-test"));
+    BOOST_REQUIRE_NO_THROW(digidoc::terminate());
+
     BOOST_REQUIRE_NO_THROW(digidoc::initialize("multi-init-test"));
     BOOST_REQUIRE_NO_THROW(digidoc::terminate());
 }
