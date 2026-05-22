@@ -7,11 +7,13 @@ add_definitions(
 )
 add_executable(unittests libdigidocpp_boost.cpp)
 add_executable(TSLTests TSLTests.cpp)
+add_executable(MultipleInitTests MultipleInitTests.cpp)
 target_link_libraries(unittests digidocpp digidocpp_tsl Boost::unit_test_framework)
 target_link_libraries(TSLTests digidocpp digidocpp_util Boost::unit_test_framework)
+target_link_libraries(MultipleInitTests digidocpp digidocpp_util Boost::unit_test_framework)
 if(WIN32)
     string(REPLACE "/EHsc" "/EHa" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-    set_target_properties(unittests TSLTests PROPERTIES COMPILE_FLAGS "/bigobj")
+    set_target_properties(unittests TSLTests MultipleInitTests PROPERTIES COMPILE_FLAGS "/bigobj")
 endif()
 add_test(NAME runtest
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/unittests --build_info=YES --report_level=no --logger=${TEST_FORMAT},all,${CMAKE_CURRENT_BINARY_DIR}/libdigidocpp.xml -- ${CMAKE_CURRENT_SOURCE_DIR}/data
@@ -41,4 +43,9 @@ foreach(TEST CA-withdrawn-granted-before CA-noqscd-granted-before
     )
 endforeach()
 
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS unittests TSLTests)
+add_test(NAME runMultipleInitTest
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/MultipleInitTests --build_info=YES --report_level=no --logger=${TEST_FORMAT},all,${CMAKE_CURRENT_BINARY_DIR}/MultipleInitTests.xml -- ${CMAKE_CURRENT_SOURCE_DIR}/data
+    WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/src
+)
+
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS unittests TSLTests MultipleInitTests)
